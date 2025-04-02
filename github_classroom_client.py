@@ -111,13 +111,14 @@ class GitHubClassroomClient:
         contributors_resp.raise_for_status()
         contributors = contributors_resp.json()
 
-        timeline = defaultdict(lambda: defaultdict(int))  # 每人每天 commit 次數
-        detailed_commits = {}  # 每人所有 commit 詳細內容
+        timeline = defaultdict(lambda: defaultdict(int))  # 每人每天 commit 數
+        detailed_commits = {}  # 每人 commit 明細
 
         for contributor in contributors:
             login = contributor.get("login")
             commit_url = f"{self.BASE_URL}/repos/{owner}/{repo}/commits?author={login}&per_page={per_page}"
             commit_resp = requests.get(commit_url, headers=self.headers)
+
             if commit_resp.status_code != 200:
                 print(f"Error fetching commits for {login}")
                 continue
@@ -128,28 +129,30 @@ class GitHubClassroomClient:
             for commit in commits:
                 commit_info = commit.get("commit", {}).get("author", {})
                 utc_date = commit_info.get("date", "")
-                message = commit_info.get("message", "")
+                message = commit.get("commit", {}).get("message", "").strip()
 
-                if utc_date:
-                    utc_time = datetime.strptime(utc_date, "%Y-%m-%dT%H:%M:%SZ")
-                    hkt_time = utc_time + timedelta(hours=8)
-                    date_str = hkt_time.strftime("%Y-%m-%d")
+                # skip if no valid date or message
+                if not utc_date or not message:
+                    continue
 
-                    timeline[login][date_str] += 1
-                    detailed_commits[login].append({
-                        "date": date_str,
-                        "message": message
-                    })
+                # 轉為香港時間
+                utc_time = datetime.strptime(utc_date, "%Y-%m-%dT%H:%M:%SZ")
+                hkt_time = utc_time + timedelta(hours=8)
+                date_str = hkt_time.strftime("%Y-%m-%d")
 
-                if date_str:
-                    timeline[login][date_str] += 1
-                    detailed_commits[login].append({
-                        "date": date_str,
-                        "message": message
-                    })
+                # 填入 timeline + 詳細內容
+                timeline[login][date_str] += 1
+                detailed_commits[login].append({
+                    "date": date_str,
+                    "message": message
+                })
 
-        # 回傳格式
+            # Debug: 確認有抓到資料
+            print(f"[DEBUG] {login} - commits: {len(detailed_commits[login])}")
+            if detailed_commits[login]:
+                print(f"Example message: {detailed_commits[login][0]['message']}")
+
         return {
-            "timeline": {user: dict(dates) for user, dates in timeline.items()},
+            "timeline": {user: dict(days) for user, days in timeline.items()},
             "details": detailed_commits
         }
