@@ -1,7 +1,7 @@
 import requests
 import sqlite3
 from collections import defaultdict
-from datetime import datetime
+from datetime import datetime, timedelta
 
 class GitHubClassroomClient:
     BASE_URL = "https://api.github.com"
@@ -127,8 +127,19 @@ class GitHubClassroomClient:
 
             for commit in commits:
                 commit_info = commit.get("commit", {}).get("author", {})
-                date_str = commit_info.get("date", "")[:10]
+                utc_date = commit_info.get("date", "")
                 message = commit_info.get("message", "")
+
+                if utc_date:
+                    utc_time = datetime.strptime(utc_date, "%Y-%m-%dT%H:%M:%SZ")
+                    hkt_time = utc_time + timedelta(hours=8)
+                    date_str = hkt_time.strftime("%Y-%m-%d")
+
+                    timeline[login][date_str] += 1
+                    detailed_commits[login].append({
+                        "date": date_str,
+                        "message": message
+                    })
 
                 if date_str:
                     timeline[login][date_str] += 1
