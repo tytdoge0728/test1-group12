@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><title>Classrooms</title></head>
+<body>
+  <h1>Classrooms</h1>
+  <ul>
+  {% for c in classrooms %}
+    <li>
+      ID: {{ c.id }} |
+      Name: {{ c.name }} |
+      <a href="/classroom/{{ c.id }}/assignments">View Assignments</a>
+    </li>
+  {% endfor %}
+  </ul>
+</body>
+</html>
