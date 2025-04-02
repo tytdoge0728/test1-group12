@@ -1,5 +1,7 @@
 import requests
 import sqlite3
+from collections import defaultdict
+from datetime import datetime
 
 class GitHubClassroomClient:
     BASE_URL = "https://api.github.com"
@@ -31,11 +33,35 @@ class GitHubClassroomClient:
         resp.raise_for_status()
         return resp.json()
 
-    def get_contributors(self, owner, repo):
-        url = f"{self.BASE_URL}/repos/{owner}/{repo}/contributors"
-        resp = requests.get(url, headers=self.headers)
-        resp.raise_for_status()
-        return resp.json()
+    def get_contributors(self, owner: str, repo: str):
+        contributors_url = f"{self.BASE_URL}/repos/{owner}/{repo}/contributors"
+        contributors_resp = requests.get(contributors_url, headers=self.headers)
+        contributors_resp.raise_for_status()
+
+        contributors = contributors_resp.json()
+        result = []
+
+        for contributor in contributors:
+            login = contributor.get("login")
+            commit_url = f"{self.BASE_URL}/repos/{owner}/{repo}/commits?author={login}&per_page=100"
+            commit_resp = requests.get(commit_url, headers=self.headers)
+            if commit_resp.status_code != 200:
+                print(f"Error fetching commits for {login}")
+                continue
+            commit_data = commit_resp.json()
+
+            result.append({
+                "login": login,
+                "avatar_url": contributor.get("avatar_url"),
+                "html_url": contributor.get("html_url"),
+                "contributions": contributor.get("contributions"),
+                "commits": [{
+                    "date": c["commit"]["author"]["date"],
+                    "message": c["commit"]["message"]
+                } for c in commit_data]
+            })
+
+        return result
 
     def save_contributors_to_db(self, owner: str, repo: str):
         url = f"{self.BASE_URL}/repos/{owner}/{repo}/contributors"
@@ -78,3 +104,41 @@ class GitHubClassroomClient:
         conn.close()
 
         return contributors
+
+    def get_commit_history(self, owner: str, repo: str, per_page=100):
+        contributors_url = f"{self.BASE_URL}/repos/{owner}/{repo}/contributors"
+        contributors_resp = requests.get(contributors_url, headers=self.headers)
+        contributors_resp.raise_for_status()
+        contributors = contributors_resp.json()
+
+        timeline = defaultdict(lambda: defaultdict(int))  # 每人每天 commit 次數
+        detailed_commits = {}  # 每人所有 commit 詳細內容
+
+        for contributor in contributors:
+            login = contributor.get("login")
+            commit_url = f"{self.BASE_URL}/repos/{owner}/{repo}/commits?author={login}&per_page={per_page}"
+            commit_resp = requests.get(commit_url, headers=self.headers)
+            if commit_resp.status_code != 200:
+                print(f"Error fetching commits for {login}")
+                continue
+
+            commits = commit_resp.json()
+            detailed_commits[login] = []
+
+            for commit in commits:
+                commit_info = commit.get("commit", {}).get("author", {})
+                date_str = commit_info.get("date", "")[:10]
+                message = commit_info.get("message", "")
+
+                if date_str:
+                    timeline[login][date_str] += 1
+                    detailed_commits[login].append({
+                        "date": date_str,
+                        "message": message
+                    })
+
+        # 回傳格式
+        return {
+            "timeline": {user: dict(dates) for user, dates in timeline.items()},
+            "details": detailed_commits
+        }

@@ -53,6 +53,7 @@
         {% else %}
             <p>No contributors found for this repository.</p>
         {% endif %}
+        
         <!-- Top row: Bar Chart + Instructor Actions side by side -->
         <div class="row g-4 mb-4">
             <!-- Left: Group Member Contributions -->
@@ -103,8 +104,14 @@
             <div class="col-md-6">
                 <div class="card">
                     <div class="card-body">
+                        
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="fw-bold mb-0">Contribution Timeline</h6>
+                        </div>
+                        <div style="text-align:center; margin-bottom: 20px;">
+                            <label>Start Date: <input type="date" id="startDate"></label>
+                            <label>End Date: <input type="date" id="endDate"></label>
+                            <button onclick="filterTimeline()">Filter Timeline</button>
                         </div>
                         <canvas id="timelineChart"></canvas>
                     </div>
@@ -115,12 +122,13 @@
 
     <script>
         const contributorsData = {{ contributors | tojson }};
+        const timelineData = {{ timeline | tojson }};
         
-        const labels = contributorsData.map(user => user.login);
-        const contributions = contributorsData.map(user => user.contributions);
+        const labels = contributorsData.map(u => u.login);
+        const contributions = contributorsData.map(u => u.contributions);
         const colors = ['#6366f1', '#0ea5e9', '#10b981', '#facc15', '#ef4444', '#a855f7'];
-    
-        // Group Member Bar Chart
+
+        // Bar chart
         new Chart(document.getElementById('memberBarChart'), {
             type: 'bar',
             data: {
@@ -133,11 +141,13 @@
             },
             options: {
                 responsive: true,
-                scales: { y: { beginAtZero: true } }
+                scales: {
+                    y: { beginAtZero: true }
+                }
             }
         });
-    
-        // 🔄 Contribution Breakdown Pie Chart
+
+        // Pie chart
         new Chart(document.getElementById('contributionPieChart'), {
             type: 'pie',
             data: {
@@ -151,6 +161,78 @@
                 responsive: true
             }
         });
+
+        // Prepare timeline chart
+        const allDates = new Set();
+        Object.values(timelineData).forEach(userData => {
+            Object.keys(userData).forEach(date => allDates.add(date));
+        });
+        const sortedDates = Array.from(allDates).sort();
+
+        const timelineDatasets = Object.entries(timelineData).map(([name, daily], i) => {
+            const dataPoints = sortedDates.map(d => daily[d] || 0);
+            return {
+                label: name,
+                data: dataPoints,
+                borderColor: colors[i % colors.length],
+                backgroundColor: colors[i % colors.length] + '33',
+                fill: true,
+                tension: 0.3
+            };
+        });
+
+        const timelineChart = new Chart(document.getElementById('timelineChart'), {
+            type: 'line',
+            data: {
+                labels: sortedDates,
+                datasets: timelineDatasets
+            },
+            options: {
+                responsive: true,
+                interaction: {
+                    mode: 'index',
+                    intersect: false
+                },
+                plugins: {
+                    tooltip: {
+                        callbacks: {
+                            label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue} commits`
+                        }
+                    }
+                },
+                scales: {
+                    y: { beginAtZero: true }
+                }
+            }
+        });
+
+        function filterTimeline() {
+            const start = document.getElementById('startDate').value;
+            const end = document.getElementById('endDate').value;
+
+            if (!start || !end) {
+                alert("Please select both start and end dates.");
+                return;
+            }
+
+            const filteredDates = sortedDates.filter(date => date >= start && date <= end);
+
+            const filteredDatasets = Object.entries(timelineData).map(([name, daily], i) => {
+                const dataPoints = filteredDates.map(d => daily[d] || 0);
+                return {
+                    label: name,
+                    data: dataPoints,
+                    borderColor: colors[i % colors.length],
+                    backgroundColor: colors[i % colors.length] + '33',
+                    fill: true,
+                    tension: 0.3
+                };
+            });
+
+            timelineChart.data.labels = filteredDates;
+            timelineChart.data.datasets = filteredDatasets;
+            timelineChart.update();
+        }
     </script>
     
 </body>
