@@ -7,6 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
         body {
             padding: 40px;
@@ -42,6 +43,18 @@
             background: #eef;
             padding: 2px 4px;
             border-radius: 4px;
+        }
+
+        .markdown-body h1 {
+        font-size: 1.2rem;  /* 你想要的大小 */
+        }
+
+        .markdown-body h2 {
+        font-size: 1.2rem;
+        }
+
+        .markdown-body h3 {
+        font-size: 1.1rem;
         }
     </style>
 </head>
@@ -93,9 +106,9 @@
                 <div class="card h-100">
                     <div class="card-body">
                         <h6 class="fw-bold mb-2">🧠 AI Summary</h6>
-                        <p id="aiSummary">Anson contributed consistently. Yu Sang had a deadline peak.</p>
-                        <button class="btn btn-outline-primary btn-sm mb-3"
-                            onclick="regenerateSummary()">Regenerate</button>
+                        <div class="markdown-body" id="aiSummary"></div>
+                        <button class="btn btn-outline-primary btn-sm mb-3" onclick="regenerateSummary()">Regenerate Summary</button>
+
                         <h6 class="fw-bold mt-4 mb-2">✍️ Manual Feedback</h6>
                         <textarea id="manualFeedback" class="form-control mb-2" rows="4"
                             placeholder="Enter feedback..."></textarea>
@@ -177,6 +190,7 @@
     </div>
 
     <script>
+        // 繪製貢獻者圖表資料
         const contributorsData = {{ contributors | tojson }};
         const timelineData = {{ timeline | tojson }};
 
@@ -277,6 +291,26 @@
             timelineChart.data.datasets = filteredDatasets;
             timelineChart.update();
         }
+
+        document.addEventListener("DOMContentLoaded", function() {
+        const rawMarkdown = `{{ ai_summary | safe }}`;
+        document.getElementById("aiSummary").innerHTML = marked.parse(rawMarkdown);
+        });
+
+        // 定義重新生成 AI Summary 的函數
+        function regenerateSummary() {
+            const repo = "{{ repo }}";
+            const [owner, repoName] = repo.split('/');
+            fetch(`/api/ai_summary/${owner}/${repoName}`)
+                .then(response => response.json())
+                .then(data => {
+                    // data.ai_summary 為 markdown 格式，使用 marked 轉換成 HTML 顯示
+                    document.getElementById("aiSummary").innerHTML = marked.parse(data.ai_summary);
+                })
+                .catch(error => {
+                    console.error("Error regenerating summary:", error);
+                });
+        }      
     </script>
 </body>
 
