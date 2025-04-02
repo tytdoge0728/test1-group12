@@ -7,7 +7,7 @@ import os
 
 # app.py
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=".env.py")  # This will parse your .env file and load variables into os.environ
+load_dotenv(dotenv_path=".env")  # This will parse your .env file and load variables into os.environ
 
 token = os.getenv("GITHUB_ACCESS_TOKEN", "")
 print(token)
