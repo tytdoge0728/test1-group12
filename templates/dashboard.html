@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Dashboard</title>
+</head>
+<body>
+  <h1>Commit Counts by User</h1>
+  <table border="1">
+    <tr>
+      <th>User</th>
+      <th>Commit Count</th>
+    </tr>
+    {% for row in user_data %}
+    <tr>
+      <td>{{ row.username }}</td>
+      <td>{{ row.commit_count }}</td>
+    </tr>
+    {% endfor %}
+  </table>
+  <p><a href="/">Home</a></p>
+</body>
+</html>
