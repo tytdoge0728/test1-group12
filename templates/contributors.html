@@ -114,89 +114,45 @@
     </div>
 
     <script>
-        const data = {
-            labels: ["2025-03-25", "2025-03-26", "2025-03-27", "2025-03-28", "2025-03-29", "2025-03-30", "2025-03-31"],
-            members: {
-                "Anson": [2, 1, 3, 5, 4, 1, 9],
-                "Yu Sang": [3, 2, 0, 6, 7, 9, 3],
-                "Tsz To": [1, 0, 2, 1, 0, 2, 3],
-                "Yuk Yu": [0, 1, 1, 0, 2, 1, 2],
-            }
-        };
-
-        const colors = ['#6366f1', '#0ea5e9', '#10b981', '#facc15'];
-
-        // Bar Chart
+        const contributorsData = {{ contributors | tojson }};
+        
+        const labels = contributorsData.map(user => user.login);
+        const contributions = contributorsData.map(user => user.contributions);
+        const colors = ['#6366f1', '#0ea5e9', '#10b981', '#facc15', '#ef4444', '#a855f7'];
+    
+        // Group Member Bar Chart
         new Chart(document.getElementById('memberBarChart'), {
             type: 'bar',
             data: {
-                labels: Object.keys(data.members),
+                labels: labels,
                 datasets: [{
                     label: 'Commits',
-                    data: Object.values(data.members).map(arr => arr.reduce((a, b) => a + b)),
+                    data: contributions,
                     backgroundColor: '#6366f1'
                 }]
             },
-            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            options: {
+                responsive: true,
+                scales: { y: { beginAtZero: true } }
+            }
         });
-
-        // Pie Chart
+    
+        // 🔄 Contribution Breakdown Pie Chart
         new Chart(document.getElementById('contributionPieChart'), {
             type: 'pie',
             data: {
-                labels: ['Frontend', 'Backend', 'Testing'],
+                labels: labels,
                 datasets: [{
-                    data: [35, 45, 20],
-                    backgroundColor: ['#3b82f6', '#10b981', '#facc15']
+                    data: contributions,
+                    backgroundColor: labels.map((_, i) => colors[i % colors.length])
                 }]
             },
-            options: { responsive: true }
+            options: {
+                responsive: true
+            }
         });
-
-        // Line Chart with filters
-        const timelineChartCtx = document.getElementById('timelineChart').getContext('2d');
-        let timelineChart;
-
-        function drawTimeline(selected) {
-            if (timelineChart) timelineChart.destroy();
-            timelineChart = new Chart(timelineChartCtx, {
-                type: 'line',
-                data: {
-                    labels: data.labels,
-                    datasets: Object.entries(data.members)
-                        .filter(([name]) => selected.includes(name))
-                        .map(([name, commits], i) => ({
-                            label: name,
-                            data: commits,
-                            borderColor: colors[i % colors.length],
-                            backgroundColor: colors[i % colors.length] + '33',
-                            fill: true,
-                            tension: 0.3
-                        }))
-                },
-                options: {
-                    responsive: true,
-                    interaction: { mode: 'index', intersect: false },
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: ctx => `${ctx.dataset.label}: ${ctx.formattedValue} commits`
-                            }
-                        }
-                    },
-                    scales: { y: { beginAtZero: true } }
-                }
-            });
-        }
-
-        const checkboxes = document.querySelectorAll('.checkbox-group input');
-        checkboxes.forEach(cb => cb.addEventListener('change', () => {
-            const selected = [...checkboxes].filter(cb => cb.checked).map(cb => cb.value);
-            drawTimeline(selected);
-        }));
-
-        drawTimeline(["Anson", "Yu Sang", "Tsz To", "Yuk Yu"]);
     </script>
+    
 </body>
 
 </html>
