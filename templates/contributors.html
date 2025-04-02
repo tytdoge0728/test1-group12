@@ -39,6 +39,20 @@
             <a href="{{ url_for('index') }}"><button>🏠 Back to Home</button></a>
             <a href="{{ url_for('list_classrooms') }}"><button>📚 View Classrooms</button></a>
         </div>
+    
+        {% if contributors %}
+            <ul>
+            {% for user in contributors %}
+                <li class="contributor">
+                    <img src="{{ user.avatar_url }}" width="40" height="40">
+                    <a href="{{ user.html_url }}" target="_blank">{{ user.login }}</a>
+                    &nbsp;–&nbsp;Contributions: {{ user.contributions }}
+                </li>
+            {% endfor %}
+            </ul>
+        {% else %}
+            <p>No contributors found for this repository.</p>
+        {% endif %}
         <!-- Top row: Bar Chart + Instructor Actions side by side -->
         <div class="row g-4 mb-4">
             <!-- Left: Group Member Contributions -->
