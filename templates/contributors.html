@@ -22,8 +22,11 @@
         }
 
         canvas {
+            height: 300px !important;
             max-height: 300px;
+            width: 100% !important;
         }
+
 
         .filter-controls label {
             margin-right: 15px;
@@ -47,6 +50,7 @@
 
         .markdown-body h1 {
             font-size: 1.2rem;
+            /* 你想要的大小 */
         }
 
         .markdown-body h2 {
@@ -62,12 +66,20 @@
 <body>
     <div class="container-fluid">
 
-        <h2 class="mb-4">👥 Contributors Dashboard – <code>{{ repo }}</code></h2>
-
-        <div class="buttons">
-            <a href="{{ url_for('index') }}"><button>🏠 Back to Home</button></a>
-            <a href="{{ url_for('list_classrooms') }}"><button>📚 View Classrooms</button></a>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-primary">👥 Contributors Dashboard</h2>
+            <span class="badge rounded-pill bg-light text-dark border">
+                {{ repo }}
+            </span>
         </div>
+
+        <div class="d-flex justify-content-end mb-4">
+            <div class="btn-group">
+                <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm">🏠 Home</a>
+                <a href="{{ url_for('list_classrooms') }}" class="btn btn-outline-secondary btn-sm">📚 Classrooms</a>
+            </div>
+        </div>
+
 
         <!-- {% if contributors %}
         <ul>
@@ -94,36 +106,35 @@
         <!-- Top: Bar + Summary -->
         <div class="row g-4 mb-4">
             <div class="col-md-8">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h5 class="fw-bold mb-3">Group Member Contributions</h5>
-                        <canvas id="memberBarChart"></canvas>
-                    </div>
+                <div class="card shadow-sm p-4 mb-4 rounded-4">
+                    <h5 class="fw-bold mb-3">📊 Group Member Contributions</h5>
+                    <canvas id="memberBarChart"></canvas>
                 </div>
+
             </div>
 
             <div class="col-md-4">
-                <div class="card h-100">
-                    <div class="card-body">
-                        <h6 class="fw-bold mb-2">🧠 AI Summary</h6>
-                        <div class="markdown-body" id="aiSummary"></div>
-                        <button class="btn btn-outline-primary btn-sm mb-3" onclick="regenerateSummary()">Regenerate
-                            Summary</button>
-                        <hr>
-                        <h6 class="fw-bold mb-2">🕵️ Freerider Detection</h6>
-                        <p class="text-muted small">點擊下方按鈕即可檢測低貢獻者</p>
-                        <input type="hidden" id="teamSlugInput" value="{{ team_slug }}">
-
-                        <button class="btn btn-danger btn-sm mb-3" onclick="detectFreeriders()">Detect
-                            Freeriders</button>
-                        <ul id="freeriderList" class="list-group small"></ul>
-
-                        <h6 class="fw-bold mt-4 mb-2">✍️ Manual Feedback</h6>
-                        <textarea id="manualFeedback" class="form-control mb-2" rows="4"
-                            placeholder="Enter feedback..."></textarea>
-                        <button class="btn btn-success btn-sm" onclick="saveFeedback()">Save</button>
-                    </div>
+                <div class="card shadow-sm p-3 mb-4">
+                    <h6 class="fw-bold mb-2">🧠 AI Summary</h6>
+                    <div class="markdown-body" id="aiSummary"></div>
+                    <button class="btn btn-outline-primary btn-sm mt-2" onclick="regenerateSummary()">Regenerate
+                        Summary</button>
                 </div>
+
+                <div class="card shadow-sm p-3 mb-4">
+                    <h6 class="fw-bold mb-2">🕵️ Freerider Detection</h6>
+                    <p class="text-muted small">Click the button below to detect low contributors!</p>
+                    <button class="btn btn-danger btn-sm mb-2" onclick="detectFreeriders()">Detect Freeriders</button>
+                    <ul id="freeriderList" class="list-group small"></ul>
+                </div>
+
+                <div class="card shadow-sm p-3">
+                    <h6 class="fw-bold mb-2">✍️ Manual Feedback</h6>
+                    <textarea id="manualFeedback" class="form-control mb-2" rows="4"
+                        placeholder="Enter feedback..."></textarea>
+                    <button class="btn btn-success btn-sm">Save</button>
+                </div>
+
             </div>
         </div>
 
@@ -143,8 +154,21 @@
                     <div class="card-body">
                         <h6 class="fw-bold mb-2">Contribution Timeline (Hong Kong Time)</h6>
                         <div class="filter-controls mb-3">
-                            <label>Start: <input type="date" id="startDate"></label>
-                            <label>End: <input type="date" id="endDate"></label>
+                            <div class="row g-2 align-items-center mb-3">
+                                <div class="col-auto">
+                                    <label class="form-label mb-0">Start:</label>
+                                    <input type="date" class="form-control form-control-sm" id="startDate">
+                                </div>
+                                <div class="col-auto">
+                                    <label class="form-label mb-0">End:</label>
+                                    <input type="date" class="form-control form-control-sm" id="endDate">
+                                </div>
+                                <div class="col-auto">
+                                    <button class="btn btn-sm btn-primary mt-3"
+                                        onclick="filterTimeline()">Filter</button>
+                                </div>
+                            </div>
+
                             <button class="btn btn-sm btn-primary" onclick="filterTimeline()">Filter</button>
                         </div>
                         <canvas id="timelineChart"></canvas>
@@ -219,7 +243,7 @@
                     backgroundColor: '#6366f1'
                 }]
             },
-            options: { responsive: true, scales: { y: { beginAtZero: true } } }
+            options: { responsive: true,maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
         });
 
         // Pie Chart
