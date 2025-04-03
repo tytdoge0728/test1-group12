@@ -22,49 +22,59 @@ app = Flask(__name__)
 def index():
     token = os.getenv("GITHUB_ACCESS_TOKEN", "")
     client = GitHubClassroomClient(token)
+    org_name = "tytdoge0728"  # <--- 替換為你的 GitHub org 名稱
 
-    all_data = [] 
+    all_data = []
+    all_users_set = set()
+    total_commit_count = 0
 
     try:
         classrooms = client.list_classrooms()
+        all_repos = client.list_all_org_repos(org_name)
+
         for classroom in classrooms:
             class_dict = {
                 "id": classroom["id"],
                 "name": classroom["name"],
                 "assignments": []
             }
-            print(f"[INFO] Classroom: {classroom['name']} ({classroom['id']})")
 
-            try:
-                assignments = client.list_assignments(classroom['id'])
-                for assignment in assignments:
-                    print(f"  └─ Assignment: {assignment['title']} ({assignment['id']})")
+            assignments = client.list_assignments(classroom["id"])
+            for assignment in assignments:
+                assignment_title = assignment["title"].lower().replace(" ", "")
+                matching_repos = [
+                    r for r in all_repos if assignment_title in r["name"].lower()
+                ]
 
+                for repo in matching_repos:
+                    # ⬇️ 呼叫 get_commit_history，並計算 user + commit 數
                     try:
-                        repos = client.list_assignment_repos(classroom['id'], assignment['id'])
-                        class_dict["assignments"].append({
-                            "id": assignment["id"],
-                            "title": assignment["title"],
-                            "repos": repos
-                        })
-                    except requests.exceptions.HTTPError as e:
-                        print(f"    [WARNING] Cannot fetch repos for assignment {assignment['id']}: {e}")
-            except requests.exceptions.HTTPError as e:
-                print(f"  [WARNING] Cannot fetch assignments for classroom {classroom['id']}: {e}")
+                        history = client.get_commit_history(repo["owner"]["login"], repo["name"])
+                        contributors = history.get("details", {})
+                        for user, commits in contributors.items():
+                            all_users_set.add(user)
+                            total_commit_count += len(commits)
+                    except Exception as e:
+                        print(f"[WARN] Cannot fetch commits for {repo['name']}: {e}")
+
+                class_dict["assignments"].append({
+                    "id": assignment["id"],
+                    "title": assignment["title"],
+                    "repos": matching_repos
+                })
 
             all_data.append(class_dict)
-    except requests.exceptions.HTTPError as e:
-        print(f"[ERROR] Cannot fetch classrooms: {e}")
-        all_data = []
 
-    # 統計資訊
-    total_repos = sum(len(a["repos"]) for c in all_data for a in c["assignments"])
+    except requests.exceptions.HTTPError as e:
+        print(f"[ERROR] {e}")
 
     return render_template("index.html",
-                           total_repos=total_repos,
-                           total_users=0,
-                           total_commits=0,
-                           all_data=all_data)
+        total_repos=sum(len(a["repos"]) for c in all_data for a in c["assignments"]),
+        total_users=len(all_users_set),
+        total_commits=total_commit_count,
+        all_data=all_data)
+
+
 
 @app.route('/classrooms')
 def list_classrooms():
@@ -79,13 +89,6 @@ def list_assignments(classroom_id):
     client = GitHubClassroomClient(token)
     assignments = client.list_assignments(classroom_id)
     return render_template("assignments.html", classroom_id=classroom_id, assignments=assignments)
-
-@app.route('/classroom/<int:classroom_id>/assignment/<int:assignment_id>/repos')
-def list_assignment_repos(classroom_id, assignment_id):
-    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
-    client = GitHubClassroomClient(token)
-    repos = client.list_assignment_repos(classroom_id, assignment_id)
-    return render_template("repos.html", repos=repos)
 
 @app.route('/repo/<owner>/<repo>/contributors')
 def show_contributors(owner, repo):
@@ -187,6 +190,25 @@ def detect_freeriders(org, team_slug, repo):
     print("🔍 Freeriders:", result.get("freeriders", []))
 
     return jsonify(result)
+
+@app.route('/classroom/<int:classroom_id>/assignment/<int:assignment_id>/repos')
+def list_assignment_repos(classroom_id, assignment_id):
+    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    client = GitHubClassroomClient(token)
+
+    org_name = "your-org-name"  # ← ← ← 這邊請改成你 GitHub Classroom 的 org 名稱
+    all_repos = client.list_all_org_repos(org_name)
+
+    # 拿 assignment 的資訊來比對（例如名稱是 "assignment1"）
+    assignments = client.list_assignments(classroom_id)
+    assignment = next((a for a in assignments if a["id"] == assignment_id), None)
+    if not assignment:
+        return "Assignment not found", 404
+
+    assignment_title = assignment["title"].lower().replace(" ", "")
+    filtered_repos = [r for r in all_repos if assignment_title in r["name"].lower()]
+
+    return render_template("repos.html", repos=filtered_repos)
 
 
 if __name__ == '__main__':

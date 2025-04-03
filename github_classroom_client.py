@@ -189,3 +189,18 @@ class GitHubClassroomClient:
             "freeriders": freeriders,
             "contributions": contributions
         }
+    def list_all_org_repos(self, org_name):
+        repos = []
+        page = 1
+        while True:
+            url = f"{self.BASE_URL}/orgs/{org_name}/repos?per_page=100&page={page}"
+            resp = requests.get(url, headers=self.headers)
+            if resp.status_code != 200:
+                print(f"[ERROR] Cannot fetch repos for org {org_name}: {resp.text}")
+                break
+            batch = resp.json()
+            if not batch:
+                break
+            repos.extend(batch)
+            page += 1
+        return repos

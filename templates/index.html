@@ -2,22 +2,81 @@
 <html>
 <head>
   <title>GitHub Classroom Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      padding: 40px;
+      background-color: #f8f9fa;
+      font-family: system-ui;
+    }
+    .card {
+      border: none;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
+      border-radius: 12px;
+      margin-bottom: 20px;
+    }
+    .nested {
+      margin-left: 20px;
+    }
+    .repo-link {
+      text-decoration: none;
+      color: #0d6efd;
+    }
+    .repo-link:hover {
+      text-decoration: underline;
+    }
+    .badge-count {
+      font-size: 13px;
+      background-color: #dee2e6;
+      color: #333;
+    }
+  </style>
 </head>
 <body>
-  <h1>GitHub Classroom Dashboard</h1>
-  <p>Total Repositories: {{ total_repos }}</p>
-  <p>Total Users: {{ total_users }}</p>
-  <p>Total Commits: {{ total_commits }}</p>
-  <p><a href="/sync">Run Sync</a> | <a href="/dashboard">View Dashboard</a></p>
+  <div class="container">
+    <h1 class="mb-4 text-primary">📊 GitHub Classroom Dashboard</h1>
 
-  <a href="{{ url_for('list_classrooms') }}">
-      <button style="padding: 10px 20px; font-size: 16px;">View Classrooms</button>
-  </a>
+    <div class="mb-4">
+      <p><strong>Total Repositories:</strong> {{ total_repos }}</p>
+      <p><strong>Total Users:</strong> {{ total_users }}</p>
+      <p><strong>Total Commits:</strong> {{ total_commits }}</p>
+      <a href="/sync" class="btn btn-outline-secondary btn-sm me-2">Run Sync</a>
+      <a href="/dashboard" class="btn btn-outline-primary btn-sm">View Dashboard</a>
+    </div>
 
-  <br><br>
+    <h5 class="mb-3 fw-bold">🏫 Classrooms, Assignments & Repos</h5>
 
-  <a href="{{ url_for('show_contributors', owner='tytdoge0728', repo='test1-group12') }}">
-      <button style="padding: 10px 20px; font-size: 16px;">View Contributors for test1-group12</button>
-  </a>
+    {% for classroom in all_data %}
+      <div class="card">
+        <div class="card-body">
+          <h5 class="card-title">🏫 {{ classroom.name }}</h5>
+
+          {% if classroom.assignments %}
+            {% for assignment in classroom.assignments %}
+              <div class="nested mb-2">
+                <strong>📘 {{ assignment.title }}</strong>
+                {% if assignment.repos %}
+                  <ul class="nested list-unstyled mb-2">
+                    {% for repo in assignment.repos %}
+                      <li class="mb-1">
+                        🔗 <a class="repo-link" href="{{ url_for('show_contributors', owner=repo.owner.login, repo=repo.name) }}">
+                          {{ repo.name }}
+                        </a>
+                        <span class="badge rounded-pill badge-count ms-2">ID: {{ repo.id }}</span>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                {% else %}
+                  <p class="text-muted nested">No repositories found for this assignment.</p>
+                {% endif %}
+              </div>
+            {% endfor %}
+          {% else %}
+            <p class="text-muted">No assignments found in this classroom.</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
 </body>
 </html>
