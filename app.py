@@ -92,14 +92,19 @@ def list_assignments(classroom_id):
 
 @app.route('/repo/<owner>/<repo>/contributors')
 def show_contributors(owner, repo):
-    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
-    client = GitHubClassroomClient(token)
-
+    client = GitHubClassroomClient(GITHUB_ACCESS_TOKEN)
     contributors = client.save_contributors_to_db(owner, repo)
     commit_data = client.get_commit_history(owner, repo)
 
-    ai_summary = get_ai_summary(contributors)
+    contributor_stats = {}
+    for user, commits in commit_data["details"].items():
+        contributor_stats[user] = {
+            "commits": len(commits),
+            "additions": sum(c.get("additions", 0) for c in commits),
+            "deletions": sum(c.get("deletions", 0) for c in commits),
+        }
 
+    ai_summary = get_ai_summary(contributors)
     team_slug = os.getenv("GITHUB_ASSIGNMENT_SLUG", "")
 
     return render_template(
@@ -108,9 +113,11 @@ def show_contributors(owner, repo):
         repo=f"{owner}/{repo}",
         timeline=commit_data["timeline"],
         commit_details=commit_data["details"],
+        contributor_stats=contributor_stats,  # 👈 傳到前端
         ai_summary=ai_summary,
         team_slug=team_slug
     )
+
 
 
 # @app.route("/api/contributions")

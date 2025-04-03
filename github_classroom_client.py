@@ -5,9 +5,11 @@ from datetime import datetime, timedelta
 
 class GitHubClassroomClient:
     BASE_URL = "https://api.github.com"
+    
 
     def __init__(self, token: str):
         self.token = token
+        self.api_url = "https://api.github.com"  
         self.headers = {
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
@@ -105,90 +107,46 @@ class GitHubClassroomClient:
 
         return contributors
 
-    def get_commit_history(self, owner: str, repo: str, per_page=100):
-        contributors_url = f"{self.BASE_URL}/repos/{owner}/{repo}/contributors"
-        contributors_resp = requests.get(contributors_url, headers=self.headers)
-        contributors_resp.raise_for_status()
-        contributors = contributors_resp.json()
+    def get_commit_history(self, owner, repo):
+        timeline = {}
+        details = {}
+        url = f"{self.api_url}/repos/{owner}/{repo}/commits"
+        headers = {"Authorization": f"Bearer {self.token}"}
 
-        timeline = defaultdict(lambda: defaultdict(int))  # 每人每天 commit 數
-        detailed_commits = {}  # 每人 commit 明細
+        r = requests.get(url, headers=headers)
+        r.raise_for_status()
+        commits = r.json()
 
-        for contributor in contributors:
-            login = contributor.get("login")
-            commit_url = f"{self.BASE_URL}/repos/{owner}/{repo}/commits?author={login}&per_page={per_page}"
-            commit_resp = requests.get(commit_url, headers=self.headers)
-
-            if commit_resp.status_code != 200:
-                print(f"Error fetching commits for {login}")
+        for commit in commits:
+            author = commit.get("author", {}).get("login")
+            if not author:
                 continue
 
-            commits = commit_resp.json()
-            detailed_commits[login] = []
+            # commit date
+            date = commit["commit"]["author"]["date"][:10]
+            timeline.setdefault(author, {})
+            timeline[author][date] = timeline[author].get(date, 0) + 1
 
-            for commit in commits:
-                commit_info = commit.get("commit", {}).get("author", {})
-                utc_date = commit_info.get("date", "")
-                message = commit.get("commit", {}).get("message", "").strip()
+            # additions & deletions
+            sha = commit["sha"]
+            commit_detail_url = f"{self.api_url}/repos/{owner}/{repo}/commits/{sha}"
+            rd = requests.get(commit_detail_url, headers=headers)
+            rd.raise_for_status()
+            commit_data = rd.json()
 
-                # skip if no valid date or message
-                if not utc_date or not message:
-                    continue
+            additions = commit_data.get("stats", {}).get("additions", 0)
+            deletions = commit_data.get("stats", {}).get("deletions", 0)
+            message = commit_data.get("commit", {}).get("message", "")
 
-                # 轉為香港時間
-                utc_time = datetime.strptime(utc_date, "%Y-%m-%dT%H:%M:%SZ")
-                hkt_time = utc_time + timedelta(hours=8)
-                date_str = hkt_time.strftime("%Y-%m-%d")
+            details.setdefault(author, []).append({
+                "date": date,
+                "message": message,
+                "additions": additions,
+                "deletions": deletions
+            })
 
-                # 填入 timeline + 詳細內容
-                timeline[login][date_str] += 1
-                detailed_commits[login].append({
-                    "date": date_str,
-                    "message": message
-                })
+        return {"timeline": timeline, "details": details}
 
-            # Debug: 確認有抓到資料
-            print(f"[DEBUG] {login} - commits: {len(detailed_commits[login])}")
-            if detailed_commits[login]:
-                print(f"Example message: {detailed_commits[login][0]['message']}")
-
-        return {
-            "timeline": {user: dict(days) for user, days in timeline.items()},
-            "details": detailed_commits
-        }
-    
-    def detect_freeriders(self, org: str, team_slug: str, repo: str, ratio_threshold: float = 0.2):
-    # 1. team members
-        team_url = f"{self.BASE_URL}/orgs/{org}/teams/{team_slug}/members"
-        team_resp = requests.get(team_url, headers=self.headers)
-        if team_resp.status_code != 200:
-            print("Error getting team members")
-            return {"freeriders": [], "contributions": {}}
-
-        team_members = [m["login"] for m in team_resp.json()]
-
-        # 2. Getting the number of commits per person
-        contributions = {member: 0 for member in team_members}
-        for member in team_members:
-            commits_url = f"{self.BASE_URL}/repos/{org}/{repo}/commits?author={member}"
-            commit_resp = requests.get(commits_url, headers=self.headers)
-            if commit_resp.status_code != 200:
-                continue
-            contributions[member] = len(commit_resp.json())
-
-        # 3. Calculate the relative proportion based on the maximum contribution, and judge those below the threshold as freerider.
-        max_contribution = max(contributions.values()) if contributions else 0
-        if max_contribution == 0:
-            print("No valid contributions found.")
-            return {"freeriders": team_members, "contributions": contributions}
-
-        freeriders = [m for m, c in contributions.items() if c < max_contribution * ratio_threshold]
-
-
-        return {
-            "freeriders": freeriders,
-            "contributions": contributions
-        }
     def list_all_org_repos(self, org_name):
         repos = []
         page = 1
