@@ -168,8 +168,6 @@
                                         onclick="filterTimeline()">Filter</button>
                                 </div>
                             </div>
-
-                            <button class="btn btn-sm btn-primary" onclick="filterTimeline()">Filter</button>
                         </div>
                         <canvas id="timelineChart"></canvas>
                     </div>
@@ -186,16 +184,18 @@
                     <div class="accordion-item">
                         <h2 class="accordion-header" id="heading{{ loop.index }}">
                             {% set stats = contributor_stats[user] %}
-<button class="accordion-button collapsed d-flex justify-content-between" ...>
-  <div>
-    <strong>{{ user }}</strong>
-    <span class="text-muted small ms-2">
-      {{ stats.commits }} commits ·
-      <span class="text-success">{{ stats.additions }} ++</span> ·
-      <span class="text-danger">{{ stats.deletions }} --</span>
-    </span>
-  </div>
-</button>
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapse{{ loop.index }}" aria-expanded="false"
+                                aria-controls="collapse{{ loop.index }}">
+                                <div>
+                                    <strong>{{ user }}</strong>
+                                    <span class="text-muted small ms-2">
+                                        {{ stats.commits }} commits ·
+                                        <span class="text-success">{{ stats.additions }} ++</span> ·
+                                        <span class="text-danger">{{ stats.deletions }} --</span>
+                                    </span>
+                                </div>
+                            </button>
                         </h2>
                         <div id="collapse{{ loop.index }}" class="accordion-collapse collapse"
                             aria-labelledby="heading{{ loop.index }}" data-bs-parent="#commitAccordion">
@@ -248,7 +248,7 @@
                     backgroundColor: '#6366f1'
                 }]
             },
-            options: { responsive: true,maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
+            options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true } } }
         });
 
         // Pie Chart
