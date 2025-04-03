@@ -10,6 +10,7 @@ class GitHubClassroomClient:
     def __init__(self, token: str):
         self.token = token
         self.api_url = "https://api.github.com"  
+        self.init_feedback_table()
         self.headers = {
             "Accept": "application/vnd.github+json",
             "Authorization": f"Bearer {token}",
@@ -162,7 +163,46 @@ class GitHubClassroomClient:
             repos.extend(batch)
             page += 1
         return repos
-    
+    def init_feedback_table(self):
+        conn = sqlite3.connect("github_users.db")
+        cursor = conn.cursor()
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS feedback (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                repo TEXT UNIQUE,
+                content TEXT,
+                timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        conn.commit()
+        conn.close()
+
+    def save_manual_feedback(self, repo: str, content: str):
+        conn = sqlite3.connect("github_users.db")
+        cursor = conn.cursor()
+
+        cursor.execute('''
+            INSERT OR REPLACE INTO feedback (repo, content)
+            VALUES (?, ?)
+        ''', (repo, content))
+
+        conn.commit()
+        conn.close()
+    def get_manual_feedback(self, repo: str):
+        conn = sqlite3.connect("github_users.db")
+        cursor = conn.cursor()
+        cursor.execute('SELECT content FROM feedback WHERE repo = ?', (repo,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else ""
+
+    def delete_manual_feedback(self, repo: str):
+        conn = sqlite3.connect("github_users.db")
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM feedback WHERE repo = ?', (repo,))
+        conn.commit()
+        conn.close()
+        
     def detect_freeriders(self, org, team_slug, repo):
         # Step 1: Get commit history
         commits = self.get_commit_history(org, repo)
@@ -184,7 +224,7 @@ class GitHubClassroomClient:
             "freeriders": freeriders,
             "contributions": contributions
         }
-    
+#ver2 
     # def detect_freeriders(self, org, team_slug, repo):
     #     # 1. Get team members
     #     team_url = f"{self.api_url}/orgs/{org}/teams/{team_slug}/members"
@@ -217,4 +257,23 @@ class GitHubClassroomClient:
     #         "freeriders": freeriders,
     #         "contributions": contributions,
     #         "threshold": THRESHOLD
+    #     }
+
+##ver3
+    # def detect_freeriders(self, org: str, team_slug: str, repo: str):
+    #     # 用 repo 中每個人 commit 數做分析
+    #     history = self.get_commit_history(org, repo)
+    #     contributions = {user: sum(commits[date] for date in commits) for user, commits in history["timeline"].items()}
+
+    #     if not contributions:
+    #         return {"freeriders": [], "contributions": {}}
+
+    #     avg = sum(contributions.values()) / len(contributions)
+    #     threshold = max(1, avg * 0.3)  # 根據 PDF 建議，小於平均值的 30% 算 freerider
+
+    #     freeriders = [user for user, count in contributions.items() if count < threshold]
+
+    #     return {
+    #         "freeriders": freeriders,
+    #         "contributions": contributions
     #     }

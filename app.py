@@ -216,6 +216,38 @@ def list_assignment_repos(classroom_id, assignment_id):
 
     return render_template("repos.html", repos=filtered_repos)
 
+@app.route('/api/save_feedback', methods=['POST'])
+def api_save_feedback():
+    data = request.get_json()
+    repo = data.get("repo")
+    content = data.get("content")
+
+    try:
+        client = GitHubClassroomClient(os.getenv("GITHUB_ACCESS_TOKEN", ""))
+        client.save_manual_feedback(repo, content)
+        return jsonify({"success": True})
+    except Exception as e:
+        print("❌ Error saving feedback:", e)
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@app.route('/api/feedback/<owner>/<repo>', methods=['GET'])
+def api_get_feedback(owner, repo):
+    client = GitHubClassroomClient(os.getenv("GITHUB_ACCESS_TOKEN", ""))
+    content = client.get_manual_feedback(f"{owner}/{repo}")
+    return jsonify({"content": content})
+
+@app.route('/api/delete_feedback', methods=['POST'])
+def api_delete_feedback():
+    data = request.get_json()
+    repo = data.get("repo")
+
+    try:
+        client = GitHubClassroomClient(os.getenv("GITHUB_ACCESS_TOKEN", ""))
+        client.delete_manual_feedback(repo)
+        return jsonify({"success": True})
+    except Exception as e:
+        print("❌ Error deleting feedback:", e)
+        return jsonify({"success": False, "error": str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

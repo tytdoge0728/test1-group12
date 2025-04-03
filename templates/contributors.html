@@ -153,10 +153,13 @@
                 </div>
 
                 <div class="card shadow-sm p-3">
-                    <h6 class="fw-bold mb-2">✍️ Manual Feedback</h6>
+                    <h6 class="fw-bold mt-4 mb-2">✍️ Manual Feedback</h6>
                     <textarea id="manualFeedback" class="form-control mb-2" rows="4"
                         placeholder="Enter feedback..."></textarea>
-                    <button class="btn btn-success btn-sm">Save</button>
+                    <div class="d-flex gap-2">
+                        <button class="btn btn-success btn-sm" onclick="saveFeedback()">💾 Save</button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteFeedback()">🗑️ Delete</button>
+                    </div>
                 </div>
 
             </div>
@@ -355,6 +358,7 @@
         }
 
         document.addEventListener("DOMContentLoaded", function () {
+            loadFeedback();
             const rawMarkdown = `{{ ai_summary | safe }}`;
             document.getElementById("aiSummary").innerHTML = marked.parse(rawMarkdown);
         });
@@ -429,6 +433,95 @@
                     console.error("AI summary fetch error:", err);
                 });
         });
+        function saveFeedback() {
+            const repo = "{{ repo }}";
+            const content = document.getElementById("manualFeedback").value.trim();
+            if (!content) {
+                alert("Please enter some feedback.");
+                return;
+            }
+
+            fetch('/api/save_feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repo, content })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("✅ Feedback saved!");
+                    } else {
+                        alert("❌ Failed to save feedback.");
+                        console.error(data.error);
+                    }
+                })
+                .catch(err => {
+                    alert("❌ Error occurred.");
+                    console.error(err);
+                });
+        }
+        function saveFeedback() {
+            const repo = "{{ repo }}";
+            const content = document.getElementById("manualFeedback").value.trim();
+            if (!content) {
+                alert("Please enter some feedback.");
+                return;
+            }
+
+            fetch('/api/save_feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repo, content })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert("✅ Feedback saved!");
+                    } else {
+                        alert("❌ Failed to save feedback.");
+                        console.error(data.error);
+                    }
+                });
+        }
+
+        function loadFeedback() {
+            const repo = "{{ repo }}";
+            const [owner, repoName] = repo.split('/');
+
+            fetch(`/api/feedback/${owner}/${repoName}`)
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById("manualFeedback").value = data.content || "";
+                })
+                .catch(err => {
+                    console.error("Error loading feedback:", err);
+                });
+        }
+
+        function deleteFeedback() {
+            const repo = "{{ repo }}";
+            if (!confirm("Are you sure you want to delete this feedback?")) return;
+
+            fetch('/api/delete_feedback', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ repo })
+            })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById("manualFeedback").value = "";
+                        alert("🗑️ Feedback deleted.");
+                    } else {
+                        alert("❌ Delete failed.");
+                    }
+                })
+                .catch(err => {
+                    alert("❌ Delete error.");
+                    console.error(err);
+                });
+        }
+
 
     </script>
 </body>
