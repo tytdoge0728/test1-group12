@@ -5,3 +5,4 @@ PyGithub==1.58.1          # Alternatively, you can use the PyGithub library
 pandas==2.0.0             # For data manipulation (if needed)
 matplotlib==3.7.1         # For charting (server-side generation, optional)
 reportlab==3.6.12         # For PDF generation (optional)
+openai==0.28.0           # For OpenAI API interaction (if needed)
