@@ -251,7 +251,6 @@
 
 
     </div>
-
     <script>
         // 繪製貢獻者圖表資料
         const contributorsData = {{ contributors | tojson }};
@@ -377,7 +376,7 @@
         function detectFreeriders() {
             const repo = "{{ repo }}";
             const [org, repoName] = repo.split('/');
-            const teamSlug = document.getElementById("teamSlugInput").value.trim();
+            const teamSlug = repoName;
 
             if (!teamSlug) {
                 alert("Please enter a team slug.");

@@ -162,3 +162,59 @@ class GitHubClassroomClient:
             repos.extend(batch)
             page += 1
         return repos
+    
+    def detect_freeriders(self, org, team_slug, repo):
+        # Step 1: Get commit history
+        commits = self.get_commit_history(org, repo)
+        contributions = {user: len(logs) for user, logs in commits["details"].items()}
+
+        # Step 2: 動態計算平均門檻
+        if not contributions:
+            return {"freeriders": [], "contributions": {}}
+
+        values = list(contributions.values())
+        average = sum(values) / len(values)
+
+        # Step 3: 設定自由騎士門檻（例如低於 30% 平均）
+        threshold = average * 0.3
+
+        freeriders = [user for user, count in contributions.items() if count < threshold]
+
+        return {
+            "freeriders": freeriders,
+            "contributions": contributions
+        }
+    
+    # def detect_freeriders(self, org, team_slug, repo):
+    #     # 1. Get team members
+    #     team_url = f"{self.api_url}/orgs/{org}/teams/{team_slug}/members"
+    #     team_resp = requests.get(team_url, headers=self.headers)
+    #     team_resp.raise_for_status()
+    #     team_members = [m["login"] for m in team_resp.json()]
+    #     print("🎯 Team Members:", team_members)
+
+    #     # 2. Get repo events (public activity)
+    #     events_url = f"{self.api_url}/repos/{org}/{repo}/events"
+    #     events_resp = requests.get(events_url, headers=self.headers)
+    #     events_resp.raise_for_status()
+    #     events = events_resp.json()
+
+    #     # 3. Count events per user (only team members)
+    #     contributions = {member: 0 for member in team_members}
+    #     for event in events:
+    #         actor = event.get("actor", {}).get("login")
+    #         if actor in contributions:
+    #             contributions[actor] += 1
+
+    #     # 4. Threshold 判斷
+    #     THRESHOLD = 5
+    #     freeriders = [user for user, count in contributions.items() if count < THRESHOLD]
+
+    #     print("📊 Contributions:", contributions)
+    #     print("🔍 Freeriders:", freeriders)
+
+    #     return {
+    #         "freeriders": freeriders,
+    #         "contributions": contributions,
+    #         "threshold": THRESHOLD
+    #     }

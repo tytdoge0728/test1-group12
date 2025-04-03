@@ -189,13 +189,13 @@ def detect_freeriders(org, team_slug, repo):
     client = GitHubClassroomClient(token)
     result = client.detect_freeriders(org, team_slug, repo)
 
-    # Debug logs
     print("👥 Team:", team_slug)
     print("📦 Repo:", repo)
     print("📊 Contributions:", result.get("contributions", {}))
     print("🔍 Freeriders:", result.get("freeriders", []))
 
     return jsonify(result)
+
 
 @app.route('/classroom/<int:classroom_id>/assignment/<int:assignment_id>/repos')
 def list_assignment_repos(classroom_id, assignment_id):
