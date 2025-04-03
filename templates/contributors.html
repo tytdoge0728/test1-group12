@@ -102,6 +102,13 @@
             {% endfor %}
         </ul>
         {% endfor %} -->
+        <!-- 🧠 Floating button -->
+        <div id="aiSummaryButton" class="position-fixed" style="bottom: 16px; right: 16px; z-index: 1100;">
+            <button class="btn btn-primary rounded-circle shadow" style="width: 56px; height: 56px;"
+                onclick="toggleAISummary()">
+                🧠
+            </button>
+        </div>
 
         <!-- Top: Bar + Summary -->
         <div class="row g-4 mb-4">
@@ -114,12 +121,29 @@
             </div>
 
             <div class="col-md-4">
-                <div class="card shadow-sm p-3 mb-4">
-                    <h6 class="fw-bold mb-2">🧠 AI Summary</h6>
-                    <div class="markdown-body" id="aiSummary"></div>
-                    <button class="btn btn-outline-primary btn-sm mt-2" onclick="regenerateSummary()">Regenerate
-                        Summary</button>
+
+                <!-- 🧠 Popup chat window -->
+                <div id="aiSummaryPopup" class="card position-fixed shadow"
+                    style="width: 350px; bottom: 80px; right: 16px; display: none; z-index: 1060;">
+                    <div class="card-header d-flex justify-content-between align-items-center py-2 px-3">
+                        <strong>AI Summary</strong>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="toggleAISummary()">✖</button>
+                    </div>
+                    <div class="card-body overflow-auto px-3 py-2" style="max-height: 300px;">
+                        <div id="aiSummaryContent" class="markdown-body text-sm">⏳ Generating summary...</div>
+                    </div>
+                    <div class="card-footer text-end px-3 py-2">
+                        <button class="btn btn-sm btn-outline-primary" onclick="regenerateSummary()">🔄
+                            Regenerate</button>
+                    </div>
                 </div>
+
+                <!-- <div class="card shadow-sm p-3 mb-4">
+                    <div class="markdown-body" id="aiSummary">
+                         <div class="text-muted small">⏳ Generating AI summary...</div>
+                        <div class="spinner-border spinner-border-sm text-secondary me-2" role="status"></div> Generating AI Summary...
+                      </div>
+                </div> -->
 
                 <div class="card shadow-sm p-3 mb-4">
                     <h6 class="fw-bold mb-2">🕵️ Freerider Detection</h6>
@@ -388,6 +412,24 @@
                     alert("Error fetching data. See console for details.");
                 });
         }
+        function toggleAISummary() {
+            const popup = document.getElementById("aiSummaryPopup");
+            popup.style.display = (popup.style.display === "none") ? "block" : "none";
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const repo = "{{ repo }}";
+            const [owner, repoName] = repo.split('/');
+            fetch(`/api/ai_summary/${owner}/${repoName}`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("aiSummaryContent").innerHTML = marked.parse(data.ai_summary);
+                })
+                .catch(err => {
+                    document.getElementById("aiSummaryContent").innerHTML = "<span class='text-danger'>❌ Failed to load summary.</span>";
+                    console.error("AI summary fetch error:", err);
+                });
+        });
 
     </script>
 </body>

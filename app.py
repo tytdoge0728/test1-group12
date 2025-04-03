@@ -14,6 +14,11 @@ load_dotenv(dotenv_path=".env")  # This will parse your .env file and load varia
 token = os.getenv("GITHUB_ACCESS_TOKEN", "")
 GITHUB_ACCESS_TOKEN = os.getenv("GITHUB_ACCESS_TOKEN", "")
 
+# Getting GitHub access tokens (for contributor data) and AI model tokens
+AI_MODEL_TOKEN = os.getenv("AI_MODEL_TOKEN", "")
+# AI Model Setup
+AI_ENDPOINT = "https://models.inference.ai.azure.com"
+AI_MODEL_NAME = "gpt-4o"
 print(token)
 
 app = Flask(__name__)
@@ -92,7 +97,8 @@ def list_assignments(classroom_id):
 
 @app.route('/repo/<owner>/<repo>/contributors')
 def show_contributors(owner, repo):
-    client = GitHubClassroomClient(GITHUB_ACCESS_TOKEN)
+    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    client = GitHubClassroomClient(token)
     contributors = client.save_contributors_to_db(owner, repo)
     commit_data = client.get_commit_history(owner, repo)
 
@@ -104,7 +110,7 @@ def show_contributors(owner, repo):
             "deletions": sum(c.get("deletions", 0) for c in commits),
         }
 
-    ai_summary = get_ai_summary(contributors)
+    ai_summary = ""
     team_slug = os.getenv("GITHUB_ASSIGNMENT_SLUG", "")
 
     return render_template(
@@ -113,7 +119,7 @@ def show_contributors(owner, repo):
         repo=f"{owner}/{repo}",
         timeline=commit_data["timeline"],
         commit_details=commit_data["details"],
-        contributor_stats=contributor_stats,  # 👈 傳到前端
+        contributor_stats=contributor_stats,
         ai_summary=ai_summary,
         team_slug=team_slug
     )
@@ -141,23 +147,16 @@ def api_ai_summary(owner, repo):
     summary = get_ai_summary(contributors)
     return jsonify({"ai_summary": summary})
 
-# 取得 GitHub 存取令牌（貢獻者資料用）與 AI 模型令牌
-AI_MODEL_TOKEN = os.getenv("AI_MODEL_TOKEN", "")  # 請在 .env 中設置
-
-
-# AI 模型設定
-AI_ENDPOINT = "https://models.inference.ai.azure.com"
-AI_MODEL_NAME = "gpt-4o"
 
 def get_ai_summary(contributors):
     """
     Convert contributors data to prompts and call the AI ​​model to generate a summary in markdown format.
     """
-    # 設定 openai 客戶端參數
+    # Set openai client parameters
     openai.api_key = AI_MODEL_TOKEN
     openai.api_base = AI_ENDPOINT
 
-    # 構造 prompt，這裡使用中文提示也可
+    # Construct prompt, you can use Chinese prompt here.
     prompt = (
     "Please generate a concise and insightful summary based on the following contributor data, "
     "entirely in valid Markdown syntax. **Do not** wrap your response in triple backticks or code blocks. "
