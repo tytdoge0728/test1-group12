@@ -46,15 +46,15 @@
         }
 
         .markdown-body h1 {
-        font-size: 1.2rem;  /* 你想要的大小 */
+            font-size: 1.2rem;
         }
 
         .markdown-body h2 {
-        font-size: 1.2rem;
+            font-size: 1.2rem;
         }
 
         .markdown-body h3 {
-        font-size: 1.1rem;
+            font-size: 1.1rem;
         }
     </style>
 </head>
@@ -107,7 +107,16 @@
                     <div class="card-body">
                         <h6 class="fw-bold mb-2">🧠 AI Summary</h6>
                         <div class="markdown-body" id="aiSummary"></div>
-                        <button class="btn btn-outline-primary btn-sm mb-3" onclick="regenerateSummary()">Regenerate Summary</button>
+                        <button class="btn btn-outline-primary btn-sm mb-3" onclick="regenerateSummary()">Regenerate
+                            Summary</button>
+                        <hr>
+                        <h6 class="fw-bold mb-2">🕵️ Freerider Detection</h6>
+                        <p class="text-muted small">點擊下方按鈕即可檢測低貢獻者</p>
+                        <input type="hidden" id="teamSlugInput" value="{{ team_slug }}">
+
+                        <button class="btn btn-danger btn-sm mb-3" onclick="detectFreeriders()">Detect
+                            Freeriders</button>
+                        <ul id="freeriderList" class="list-group small"></ul>
 
                         <h6 class="fw-bold mt-4 mb-2">✍️ Manual Feedback</h6>
                         <textarea id="manualFeedback" class="form-control mb-2" rows="4"
@@ -147,45 +156,46 @@
         <!-- Bottom: Commit Logs -->
         <div class="card mt-4">
             <div class="card-body">
-              <h5 class="fw-bold mb-3">📝 Commit Details</h5>
-              <div class="accordion" id="commitAccordion">
-                {% for user, commits in commit_details.items() %}
-                  <div class="accordion-item">
-                    <h2 class="accordion-header" id="heading{{ loop.index }}">
-                      <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
-                        data-bs-target="#collapse{{ loop.index }}" aria-expanded="false" aria-controls="collapse{{ loop.index }}">
-                        {{ user }}
-                        <span class="badge bg-primary ms-2">{{ commits | length }} commits</span>
-                      </button>
-                    </h2>
-                    <div id="collapse{{ loop.index }}" class="accordion-collapse collapse"
-                      aria-labelledby="heading{{ loop.index }}" data-bs-parent="#commitAccordion">
-                      <div class="accordion-body p-0">
-                        <ul class="list-group list-group-flush">
-                          {% for c in commits %}
-                            {% set lines = c.message.split('\\n') if c.message else [''] %}
-                            <li class="list-group-item">
-                              <div class="d-flex flex-column">
-                                <div class="d-flex justify-content-between">
-                                  <strong class="text-dark">{{ lines[0] }}</strong>
-                                  <span class="text-muted small">{{ c.date }}</span>
-                                </div>
-                                {% if lines|length > 1 %}
-                                  <div class="text-muted small">{{ lines[1:] | join(' ') }}</div>
-                                {% endif %}
-                              </div>
-                            </li>
-                          {% endfor %}
-                        </ul>
-                      </div>
+                <h5 class="fw-bold mb-3">📝 Commit Details</h5>
+                <div class="accordion" id="commitAccordion">
+                    {% for user, commits in commit_details.items() %}
+                    <div class="accordion-item">
+                        <h2 class="accordion-header" id="heading{{ loop.index }}">
+                            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                                data-bs-target="#collapse{{ loop.index }}" aria-expanded="false"
+                                aria-controls="collapse{{ loop.index }}">
+                                {{ user }}
+                                <span class="badge bg-primary ms-2">{{ commits | length }} commits</span>
+                            </button>
+                        </h2>
+                        <div id="collapse{{ loop.index }}" class="accordion-collapse collapse"
+                            aria-labelledby="heading{{ loop.index }}" data-bs-parent="#commitAccordion">
+                            <div class="accordion-body p-0">
+                                <ul class="list-group list-group-flush">
+                                    {% for c in commits %}
+                                    {% set lines = c.message.split('\\n') if c.message else [''] %}
+                                    <li class="list-group-item">
+                                        <div class="d-flex flex-column">
+                                            <div class="d-flex justify-content-between">
+                                                <strong class="text-dark">{{ lines[0] }}</strong>
+                                                <span class="text-muted small">{{ c.date }}</span>
+                                            </div>
+                                            {% if lines|length > 1 %}
+                                            <div class="text-muted small">{{ lines[1:] | join(' ') }}</div>
+                                            {% endif %}
+                                        </div>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
                     </div>
-                  </div>
-                {% endfor %}
-              </div>
+                    {% endfor %}
+                </div>
             </div>
-          </div>
-          
-          
+        </div>
+
+
 
     </div>
 
@@ -292,9 +302,9 @@
             timelineChart.update();
         }
 
-        document.addEventListener("DOMContentLoaded", function() {
-        const rawMarkdown = `{{ ai_summary | safe }}`;
-        document.getElementById("aiSummary").innerHTML = marked.parse(rawMarkdown);
+        document.addEventListener("DOMContentLoaded", function () {
+            const rawMarkdown = `{{ ai_summary | safe }}`;
+            document.getElementById("aiSummary").innerHTML = marked.parse(rawMarkdown);
         });
 
         // 定義重新生成 AI Summary 的函數
@@ -310,7 +320,46 @@
                 .catch(error => {
                     console.error("Error regenerating summary:", error);
                 });
-        }      
+        }
+        function detectFreeriders() {
+            const repo = "{{ repo }}";
+            const [org, repoName] = repo.split('/');
+            const teamSlug = document.getElementById("teamSlugInput").value.trim();
+
+            if (!teamSlug) {
+                alert("Please enter a team slug.");
+                return;
+            }
+
+            fetch(`/freeriders/${org}/${teamSlug}/${repoName}`)
+                .then(response => response.json())
+                .then(data => {
+                    const list = document.getElementById("freeriderList");
+                    list.innerHTML = "";
+                    if (!data.freeriders || !Array.isArray(data.freeriders)) {
+                        console.error("Invalid response format:", data);
+                        alert("Invalid response from server.");
+                        return;
+                    }
+
+                    if (data.freeriders.length === 0) {
+                        list.innerHTML = "<li class='list-group-item text-success'>🎉 No freeriders detected!</li>";
+                    } else {
+                        data.freeriders.forEach(user => {
+                            const item = document.createElement("li");
+                            item.className = "list-group-item";
+                            item.textContent = `⚠️ ${user} - ${data.contributions[user]} commits`;
+                            list.appendChild(item);
+                        });
+                    }
+
+                })
+                .catch(err => {
+                    console.error("Error detecting freeriders:", err);
+                    alert("Error fetching data. See console for details.");
+                });
+        }
+
     </script>
 </body>
 

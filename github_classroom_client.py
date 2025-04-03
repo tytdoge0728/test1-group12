@@ -156,3 +156,36 @@ class GitHubClassroomClient:
             "timeline": {user: dict(days) for user, days in timeline.items()},
             "details": detailed_commits
         }
+    
+    def detect_freeriders(self, org: str, team_slug: str, repo: str, ratio_threshold: float = 0.2):
+    # 1. team members
+        team_url = f"{self.BASE_URL}/orgs/{org}/teams/{team_slug}/members"
+        team_resp = requests.get(team_url, headers=self.headers)
+        if team_resp.status_code != 200:
+            print("Error getting team members")
+            return {"freeriders": [], "contributions": {}}
+
+        team_members = [m["login"] for m in team_resp.json()]
+
+        # 2. Getting the number of commits per person
+        contributions = {member: 0 for member in team_members}
+        for member in team_members:
+            commits_url = f"{self.BASE_URL}/repos/{org}/{repo}/commits?author={member}"
+            commit_resp = requests.get(commits_url, headers=self.headers)
+            if commit_resp.status_code != 200:
+                continue
+            contributions[member] = len(commit_resp.json())
+
+        # 3. Calculate the relative proportion based on the maximum contribution, and judge those below the threshold as freerider.
+        max_contribution = max(contributions.values()) if contributions else 0
+        if max_contribution == 0:
+            print("No valid contributions found.")
+            return {"freeriders": team_members, "contributions": contributions}
+
+        freeriders = [m for m, c in contributions.items() if c < max_contribution * ratio_threshold]
+
+
+        return {
+            "freeriders": freeriders,
+            "contributions": contributions
+        }

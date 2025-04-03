@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, redirect, url_for, jsonify
 from github_classroom_client import GitHubClassroomClient  # (make sure this file is in the same folder)
 import os
 import openai
+import requests
 
 #test for git command
 # app.py
@@ -19,7 +20,51 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return render_template("index.html")
+    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    client = GitHubClassroomClient(token)
+
+    all_data = [] 
+
+    try:
+        classrooms = client.list_classrooms()
+        for classroom in classrooms:
+            class_dict = {
+                "id": classroom["id"],
+                "name": classroom["name"],
+                "assignments": []
+            }
+            print(f"[INFO] Classroom: {classroom['name']} ({classroom['id']})")
+
+            try:
+                assignments = client.list_assignments(classroom['id'])
+                for assignment in assignments:
+                    print(f"  └─ Assignment: {assignment['title']} ({assignment['id']})")
+
+                    try:
+                        repos = client.list_assignment_repos(classroom['id'], assignment['id'])
+                        class_dict["assignments"].append({
+                            "id": assignment["id"],
+                            "title": assignment["title"],
+                            "repos": repos
+                        })
+                    except requests.exceptions.HTTPError as e:
+                        print(f"    [WARNING] Cannot fetch repos for assignment {assignment['id']}: {e}")
+            except requests.exceptions.HTTPError as e:
+                print(f"  [WARNING] Cannot fetch assignments for classroom {classroom['id']}: {e}")
+
+            all_data.append(class_dict)
+    except requests.exceptions.HTTPError as e:
+        print(f"[ERROR] Cannot fetch classrooms: {e}")
+        all_data = []
+
+    # 統計資訊
+    total_repos = sum(len(a["repos"]) for c in all_data for a in c["assignments"])
+
+    return render_template("index.html",
+                           total_repos=total_repos,
+                           total_users=0,
+                           total_commits=0,
+                           all_data=all_data)
 
 @app.route('/classrooms')
 def list_classrooms():
@@ -52,13 +97,18 @@ def show_contributors(owner, repo):
 
     ai_summary = get_ai_summary(contributors)
 
+    team_slug = os.getenv("GITHUB_ASSIGNMENT_SLUG", "")
+
     return render_template(
         "contributors.html",
         contributors=contributors,
         repo=f"{owner}/{repo}",
         timeline=commit_data["timeline"],
-        commit_details=commit_data["details"]
+        commit_details=commit_data["details"],
+        ai_summary=ai_summary,
+        team_slug=team_slug
     )
+
 
 # @app.route("/api/contributions")
 # def get_contributions():
@@ -124,6 +174,19 @@ def get_ai_summary(contributors):
         print("Error generating AI summary:", e)
     return summary
 
+@app.route('/freeriders/<org>/<team_slug>/<repo>')
+def detect_freeriders(org, team_slug, repo):
+    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    client = GitHubClassroomClient(token)
+    result = client.detect_freeriders(org, team_slug, repo)
+
+    # Debug logs
+    print("👥 Team:", team_slug)
+    print("📦 Repo:", repo)
+    print("📊 Contributions:", result.get("contributions", {}))
+    print("🔍 Freeriders:", result.get("freeriders", []))
+
+    return jsonify(result)
 
 
 if __name__ == '__main__':
