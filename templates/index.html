@@ -1,50 +1,138 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+  <meta charset="UTF-8" />
   <title>GitHub Classroom Dashboard</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+  <!-- Bootstrap 5 CSS (CDN) -->
+  <link
+    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+    rel="stylesheet"
+  />
+
+  <!-- Optionally: Animate.css for simple CSS animations (CDN) -->
+  <link
+    rel="stylesheet"
+    href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"
+  />
+
   <style>
     body {
-      padding: 40px;
       background-color: #f8f9fa;
-      font-family: system-ui;
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      /* 讓頁面保持更大的邊距、更乾淨 */
+      padding: 40px;
     }
+
     .card {
       border: none;
       box-shadow: 0 2px 10px rgba(0, 0, 0, 0.06);
       border-radius: 12px;
       margin-bottom: 20px;
+      transition: transform 0.2s ease;
     }
+
+    .card:hover {
+      transform: translateY(-2px);
+    }
+
     .nested {
       margin-left: 20px;
     }
+
     .repo-link {
       text-decoration: none;
       color: #0d6efd;
     }
+
     .repo-link:hover {
       text-decoration: underline;
     }
+
     .badge-count {
       font-size: 13px;
       background-color: #dee2e6;
       color: #333;
     }
+
+    /* 讓重要指標有更明顯的區分 */
+    .stats-container {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+
+    .stat-box {
+      flex: 1 1 auto;
+      min-width: 180px;
+      padding: 20px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 1px 5px rgba(0, 0, 0, 0.05);
+      text-align: center;
+      transition: 0.2s box-shadow;
+    }
+
+    .stat-box:hover {
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-box h2 {
+      margin: 0;
+      font-size: 2rem;
+      color: #0d6efd;
+    }
+
+    .stat-box p {
+      color: #6c757d;
+      font-weight: 500;
+      margin: 0;
+    }
+
+    .action-buttons .btn {
+      margin-right: 10px;
+    }
+
+    /* 在小螢幕(例如手機)時讓卡片欄位自適應 */
+    @media (max-width: 576px) {
+      .stat-box {
+        margin-bottom: 10px;
+      }
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1 class="mb-4 text-primary">📊 GitHub Classroom Dashboard</h1>
+  <div class="container animate__animated animate__fadeIn">
+    <h1 class="mb-4 text-primary">
+      <span>📊</span> GitHub Classroom Dashboard
+    </h1>
 
-    <div class="mb-4">
-      <p><strong>Total Repositories:</strong> {{ total_repos }}</p>
-      <p><strong>Total Users:</strong> {{ total_users }}</p>
-      <p><strong>Total Commits:</strong> {{ total_commits }}</p>
-      <a href="/sync" class="btn btn-outline-secondary btn-sm me-2">Run Sync</a>
+    <!-- 統計指標區 -->
+    <div class="stats-container">
+      <div class="stat-box">
+        <h2>{{ total_repos }}</h2>
+        <p>Total Repositories</p>
+      </div>
+      <div class="stat-box">
+        <h2>{{ total_users }}</h2>
+        <p>Total Users</p>
+      </div>
+      <div class="stat-box">
+        <h2>{{ total_commits }}</h2>
+        <p>Total Commits</p>
+      </div>
+    </div>
+
+    <!-- 按鈕區域 -->
+    <div class="action-buttons mb-4">
+      <a href="/sync" class="btn btn-outline-secondary btn-sm">Run Sync</a>
       <a href="/dashboard" class="btn btn-outline-primary btn-sm">View Dashboard</a>
     </div>
 
-    <h5 class="mb-3 fw-bold">🏫 Classrooms, Assignments & Repos</h5>
+    <h5 class="mb-3 fw-bold">
+      <span>🏫</span> Classrooms, Assignments & Repos
+    </h5>
 
     {% for classroom in all_data %}
       <div class="card">
@@ -59,24 +147,39 @@
                   <ul class="nested list-unstyled mb-2">
                     {% for repo in assignment.repos %}
                       <li class="mb-1">
-                        🔗 <a class="repo-link" href="{{ url_for('show_contributors', owner=repo.owner.login, repo=repo.name) }}">
+                        🔗
+                        <a
+                          class="repo-link"
+                          href="{{ url_for('show_contributors', owner=repo.owner.login, repo=repo.name) }}"
+                        >
                           {{ repo.name }}
                         </a>
-                        <span class="badge rounded-pill badge-count ms-2">ID: {{ repo.id }}</span>
+                        <span class="badge rounded-pill badge-count ms-2"
+                          >ID: {{ repo.id }}</span
+                        >
                       </li>
                     {% endfor %}
                   </ul>
                 {% else %}
-                  <p class="text-muted nested">No repositories found for this assignment.</p>
+                  <p class="text-muted nested">
+                    No repositories found for this assignment.
+                  </p>
                 {% endif %}
               </div>
             {% endfor %}
           {% else %}
-            <p class="text-muted">No assignments found in this classroom.</p>
+            <p class="text-muted">
+              No assignments found in this classroom.
+            </p>
           {% endif %}
         </div>
       </div>
     {% endfor %}
   </div>
+
+  <!-- Bootstrap 5 JS (CDN) -->
+  <script
+    src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"
+  ></script>
 </body>
 </html>
