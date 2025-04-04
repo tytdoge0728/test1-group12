@@ -1,31 +1,48 @@
 # app.py
-# try handling for loading .env file
-from flask import Flask, render_template, request, redirect, url_for, jsonify
+from flask import Flask, render_template, request, redirect, url_for, jsonify, session
 from github_classroom_client import GitHubClassroomClient  # (make sure this file is in the same folder)
 import os
 import openai
 import requests
-
-#test for git command
-# app.py
 from dotenv import load_dotenv
-load_dotenv(dotenv_path=".env")  # This will parse your .env file and load variables into os.environ
 
-token = os.getenv("GITHUB_ACCESS_TOKEN", "")
-GITHUB_ACCESS_TOKEN = os.getenv("GITHUB_ACCESS_TOKEN", "")
+# 讀取其他環境變數，例如 AI_MODEL_TOKEN，但 GitHub token 將從登入頁取得
+load_dotenv(dotenv_path=".env")
 
-# Getting GitHub access tokens (for contributor data) and AI model tokens
 AI_MODEL_TOKEN = os.getenv("AI_MODEL_TOKEN", "")
-# AI Model Setup
 AI_ENDPOINT = "https://models.inference.ai.azure.com"
 AI_MODEL_NAME = "gpt-4o"
-print(token)
 
 app = Flask(__name__)
+app.secret_key = 'your-secret-key'  # 請務必改成一個安全的隨機字串
 
+# 登入頁面路由
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        token = request.form.get('github_token')
+        if token:
+            session['GITHUB_ACCESS_TOKEN'] = token
+            return redirect(url_for('index'))
+        else:
+            error = "請輸入 GitHub Personal Access Token"
+            return render_template('login.html', error=error)
+    return render_template('login.html')
+
+
+# 登出（選用，可清除 session）
+@app.route('/logout')
+def logout():
+    session.pop('GITHUB_ACCESS_TOKEN', None)
+    return redirect(url_for('login'))
+
+
+# 每個需要 token 的路由都先從 session 讀取，如果沒有則導向登入頁
 @app.route('/')
 def index():
-    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
     client = GitHubClassroomClient(token)
     org_name = "tytdoge0728"  # <--- 替換為你的 GitHub org 名稱
 
@@ -52,7 +69,6 @@ def index():
                 ]
 
                 for repo in matching_repos:
-                    # ⬇️ 呼叫 get_commit_history，並計算 user + commit 數
                     try:
                         history = client.get_commit_history(repo["owner"]["login"], repo["name"])
                         contributors = history.get("details", {})
@@ -74,30 +90,37 @@ def index():
         print(f"[ERROR] {e}")
 
     return render_template("index.html",
-        total_repos=sum(len(a["repos"]) for c in all_data for a in c["assignments"]),
-        total_users=len(all_users_set),
-        total_commits=total_commit_count,
-        all_data=all_data)
-
+                           total_repos=sum(len(a["repos"]) for c in all_data for a in c["assignments"]),
+                           total_users=len(all_users_set),
+                           total_commits=total_commit_count,
+                           all_data=all_data)
 
 
 @app.route('/classrooms')
 def list_classrooms():
-    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
     client = GitHubClassroomClient(token)
     classrooms = client.list_classrooms()
     return render_template("classrooms.html", classrooms=classrooms)
 
+
 @app.route('/classroom/<int:classroom_id>/assignments')
 def list_assignments(classroom_id):
-    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
     client = GitHubClassroomClient(token)
     assignments = client.list_assignments(classroom_id)
     return render_template("assignments.html", classroom_id=classroom_id, assignments=assignments)
 
+
 @app.route('/repo/<owner>/<repo>/contributors')
 def show_contributors(owner, repo):
-    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
     client = GitHubClassroomClient(token)
     contributors = client.save_contributors_to_db(owner, repo)
     commit_data = client.get_commit_history(owner, repo)
@@ -110,39 +133,24 @@ def show_contributors(owner, repo):
             "deletions": sum(c.get("deletions", 0) for c in commits),
         }
 
-    ai_summary = ""
     team_slug = os.getenv("GITHUB_ASSIGNMENT_SLUG", "")
-
-    return render_template(
-        "contributors.html",
-        contributors=contributors,
-        repo=f"{owner}/{repo}",
-        timeline=commit_data["timeline"],
-        commit_details=commit_data["details"],
-        contributor_stats=contributor_stats,
-        ai_summary=ai_summary,
-        team_slug=team_slug
-    )
-
-
-
-# @app.route("/api/contributions")
-# def get_contributions():
-#     data = {
-#         "labels": ["2025-03-25", "2025-03-26", "2025-03-27", "2025-03-28", "2025-03-29", "2025-03-30", "2025-03-31"],
-#         "members": {
-#             "Anson": [2, 1, 3, 5, 4, 1, 9],
-#             "Yu Sang": [3, 2, 0, 6, 7, 9, 3],
-#             "Tsz To": [1, 0, 2, 1, 0, 2, 3],
-#             "Yuk Yu": [0, 1, 1, 0, 2, 1, 2]
-#         }
-#     }
-#     return jsonify(data)
+    ai_summary = ""
+    return render_template("contributors.html",
+                           contributors=contributors,
+                           repo=f"{owner}/{repo}",
+                           timeline=commit_data["timeline"],
+                           commit_details=commit_data["details"],
+                           contributor_stats=contributor_stats,
+                           ai_summary=ai_summary,
+                           team_slug=team_slug)
 
 
 @app.route('/api/ai_summary/<owner>/<repo>')
 def api_ai_summary(owner, repo):
-    client = GitHubClassroomClient(GITHUB_ACCESS_TOKEN)
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
+    client = GitHubClassroomClient(token)
     contributors = client.save_contributors_to_db(owner, repo)
     summary = get_ai_summary(contributors)
     return jsonify({"ai_summary": summary})
@@ -150,17 +158,15 @@ def api_ai_summary(owner, repo):
 
 def get_ai_summary(contributors):
     """
-    Convert contributors data to prompts and call the AI ​​model to generate a summary in markdown format.
+    Convert contributors data to prompts and call the AI model to generate a summary in markdown format.
     """
-    # Set openai client parameters
     openai.api_key = AI_MODEL_TOKEN
     openai.api_base = AI_ENDPOINT
 
-    # Construct prompt, you can use Chinese prompt here.
     prompt = (
-    "Please generate a concise and insightful summary based on the following contributor data, "
-    "entirely in valid Markdown syntax. **Do not** wrap your response in triple backticks or code blocks. "
-    "Use headings, bullet points, bold, italics, etc. to structure your Markdown.\n"
+        "Please generate a concise and insightful summary based on the following contributor data, "
+        "entirely in valid Markdown syntax. **Do not** wrap your response in triple backticks or code blocks. "
+        "Use headings, bullet points, bold, italics, etc. to structure your Markdown.\n"
     )
     for user in contributors:
         prompt += f"{user['login']} - {user['contributions']} Submissions。\n"
@@ -183,9 +189,12 @@ def get_ai_summary(contributors):
         print("Error generating AI summary:", e)
     return summary
 
+
 @app.route('/freeriders/<org>/<team_slug>/<repo>')
 def detect_freeriders(org, team_slug, repo):
-    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
     client = GitHubClassroomClient(token)
     result = client.detect_freeriders(org, team_slug, repo)
 
@@ -199,13 +208,14 @@ def detect_freeriders(org, team_slug, repo):
 
 @app.route('/classroom/<int:classroom_id>/assignment/<int:assignment_id>/repos')
 def list_assignment_repos(classroom_id, assignment_id):
-    token = os.getenv("GITHUB_ACCESS_TOKEN", "")
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
     client = GitHubClassroomClient(token)
 
-    org_name = "your-org-name"  # ← ← ← 這邊請改成你 GitHub Classroom 的 org 名稱
+    org_name = "your-org-name"  # ← 請改成你 GitHub Classroom 的 org 名稱
     all_repos = client.list_all_org_repos(org_name)
 
-    # 拿 assignment 的資訊來比對（例如名稱是 "assignment1"）
     assignments = client.list_assignments(classroom_id)
     assignment = next((a for a in assignments if a["id"] == assignment_id), None)
     if not assignment:
@@ -216,38 +226,51 @@ def list_assignment_repos(classroom_id, assignment_id):
 
     return render_template("repos.html", repos=filtered_repos)
 
+
 @app.route('/api/save_feedback', methods=['POST'])
 def api_save_feedback():
     data = request.get_json()
     repo = data.get("repo")
     content = data.get("content")
 
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
     try:
-        client = GitHubClassroomClient(os.getenv("GITHUB_ACCESS_TOKEN", ""))
+        client = GitHubClassroomClient(token)
         client.save_manual_feedback(repo, content)
         return jsonify({"success": True})
     except Exception as e:
         print("❌ Error saving feedback:", e)
         return jsonify({"success": False, "error": str(e)}), 500
 
+
 @app.route('/api/feedback/<owner>/<repo>', methods=['GET'])
 def api_get_feedback(owner, repo):
-    client = GitHubClassroomClient(os.getenv("GITHUB_ACCESS_TOKEN", ""))
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
+    client = GitHubClassroomClient(token)
     content = client.get_manual_feedback(f"{owner}/{repo}")
     return jsonify({"content": content})
+
 
 @app.route('/api/delete_feedback', methods=['POST'])
 def api_delete_feedback():
     data = request.get_json()
     repo = data.get("repo")
 
+    token = session.get("GITHUB_ACCESS_TOKEN")
+    if not token:
+        return redirect(url_for('login'))
     try:
-        client = GitHubClassroomClient(os.getenv("GITHUB_ACCESS_TOKEN", ""))
+        client = GitHubClassroomClient(token)
         client.delete_manual_feedback(repo)
         return jsonify({"success": True})
     except Exception as e:
         print("❌ Error deleting feedback:", e)
         return jsonify({"success": False, "error": str(e)}), 500
+
 
 if __name__ == '__main__':
     app.run(debug=True)
